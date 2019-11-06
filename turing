@@ -1,0 +1,168 @@
+#include "ConsoleColors.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <windows.h>
+#include <thread>
+#include <mutex>
+#include <conio.h>
+using namespace std;
+mutex mtx;
+void gotoxy(int x, int y);
+void ShowConsoleCursor(bool showFlag);
+class turing {
+private:
+	int Head, LinesCount, ind, x, stop;
+	string Line, *Status1, *Status2, *Direction, Trash;
+	char *FirstNum, *SecondNum;
+	char FileName[50];
+public:
+	void operator()() { ArrayFilling(); }
+	void LineCounting(int x, int stop) {
+		this->x = x;
+		this->stop = stop;
+		LinesCount = 0;
+		cout << "Enter the file name: " << endl;
+		cin >> FileName;
+		ifstream fd(FileName);
+		while (true) {
+			if (!fd) {
+				break;
+			}
+			while (getline(fd, Trash)) {
+				fd >> Trash;
+				LinesCount++;
+			}
+		}
+		LinesCount = LinesCount - 2;
+		fd.close();
+	}
+	void ArrayFilling() {
+		Status1 = new string[LinesCount];
+		Status2 = new string[LinesCount];
+		FirstNum = new char[LinesCount];
+		SecondNum = new char[LinesCount];
+		Direction = new string[LinesCount];
+		Input();
+	}
+	void Input() {
+		ifstream fd(FileName);
+		fd >> Head;
+		Head--;
+		fd >> Line;
+		for (int i = 0; i <= LinesCount; i++) {
+			fd >> Status1[i];
+			fd >> FirstNum[i];
+			fd >> SecondNum[i];
+			fd >> Direction[i];
+			fd >> Status2[i];
+		}
+		Status1Zero();
+	}
+	void Status1Zero() {
+		ind = 0;
+		for (int i = 0; i <= LinesCount; i++) {
+			if ((Status1[i] == "0") && (Line[Head] == FirstNum[i])) {
+				ind = i;
+				break;
+			}
+			Line[Head] = SecondNum[ind];
+			if (Direction[ind] == "R") {
+				Head++;
+			}
+			else {
+				Head--;
+			}
+		}
+		Start();
+	}
+	void Start() {
+		while (true){
+			mtx.lock();
+			gotoxy(0, 0 + x * 4);
+			for (int i = 0; i < LinesCount; i++) {
+				if ((Status2[ind] == Status1[i]) && (Line[Head] == FirstNum[i])) {
+					Line[Head] = SecondNum[i];
+					ind = i;
+					break;
+				}
+			}
+			if (Direction[ind] == "R") {
+				Head++;
+			}
+			else if (Direction[ind] == "L") {
+				Head--;
+			}
+			cout << blue;
+			cout << "HEAD POSITION: " << Head << "      ";
+			cout << "CURRENT STATE: " << Status1[ind] << "      " << endl;
+			cout << white;
+			for (int i = 0; i < Line.length(); i++) {
+				if (i == Head) {
+					cout << red << Line[i];
+				}
+				else {
+					cout << white << Line[i];
+				}
+			}
+			if ((Head < 0) || (Head > Line.length())) {
+				cout << endl;
+				cout << red << "Head crossed the tape limit.";
+				cout << white;
+				mtx.unlock();
+				break;
+			}
+			if (x + 1 == stop) {
+				cout << endl;
+				cout << endl;
+				cout << green << "Press any key to stop..." << endl;
+			}
+			if (_kbhit()){
+				mtx.unlock();
+				break;
+			}
+			mtx.unlock();
+			Sleep(1);
+		}
+		delete[]Status2;
+		delete[]Status1;
+		delete[]FirstNum;
+		delete[]SecondNum;
+		delete[]Direction;
+	}
+};
+int main() {
+	int size;
+	ShowConsoleCursor(false);
+	cout << "How many files would you like to work with?" << endl;
+	cin >> size;
+	turing* A = new turing[size];
+	for (int i = 0; i < size; i++) {
+		A[i].LineCounting(i, size);
+	}
+	system("CLS");
+	thread* thr = new thread[size];
+	for (int i = 0; i < size; i++) {
+		thr[i] = thread(A[i]);
+	}
+	for (int i = 0; i < size; i++) {
+		thr[i].join();
+	}
+	gotoxy(0, 0 + size * 4);
+	delete[]A;
+	delete[]thr;
+	return 0;
+}
+
+void gotoxy(int x, int y) {
+	COORD pos = { x, y };
+	HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleCursorPosition(output, pos);
+}
+void ShowConsoleCursor(bool showFlag) {
+	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_CURSOR_INFO     cursorInfo;
+	GetConsoleCursorInfo(out, &cursorInfo);
+	cursorInfo.bVisible = showFlag;
+	SetConsoleCursorInfo(out, &cursorInfo);
+}
